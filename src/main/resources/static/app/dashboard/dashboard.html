@@ -3,14 +3,13 @@
 <div class="row">
     <div class="col-md-5">
         <div class="panel panel-default">
-            <div class="panel-heading">
-                <h1 class="panel-title"><i class="fa fa-bolt"></i> Muziek</h1>
-            </div>
-
             <div class="panel-body">
-                <input ng-model='treeSearchQuery' type="text" />
+                <div class="form-group">
+                    <input id="tree-search" class="form-control" ng-model='treeSearchQuery' type="text" />
+                </div>
 
                 <div
+                        class="tree"
                         data-angular-treeview="true"
                         data-tree-id="tree"
                         data-tree-model="vm.treedata"
@@ -29,7 +28,9 @@
                 <h1 class="panel-title">{{tree.currentNode.title ? tree.currentNode.title : '-'}}</h1>
             </div>
             <div class="panel-body">
-
+                <ul>
+                    <li ng-repeat="item in vm.itemsInSelectedNode">{{item.title}}</li>
+                </ul>
             </div>
         </div>
     </div>

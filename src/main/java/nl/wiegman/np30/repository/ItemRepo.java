@@ -12,4 +12,6 @@ public interface ItemRepo extends JpaRepository<Item, String> {
     List<Item> findByParentId(String parentId);
 
     List<Item> findByParentIdAndIsContainerTrue(String parentId);
+
+    List<Item> findByParentIdAndIsContainerFalse(String parentId);
 }

@@ -75,7 +75,7 @@
             //if node head clicks,
             scope[treeId].selectNodeHead = scope[treeId].selectNodeHead || function( selectedNode ){
               //Collapse or Expand
-              if(selectedNode[nodeChildren] !== undefined){
+              if(selectedNode[nodeChildren] !== undefined && selectedNode[nodeChildren].length > 0){
                 selectedNode.expanded = !selectedNode.expanded;
               }
             };

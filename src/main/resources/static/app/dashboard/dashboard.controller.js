@@ -5,38 +5,45 @@
         .module('app')
         .controller('DashboardController', DashboardController);
 
-    DashboardController.$inject = ['$http', '$log'];
+    DashboardController.$inject = ['$scope', '$http', '$log', 'LoadingIndicatorService'];
 
-    function DashboardController($http, $log) {
+    function DashboardController($scope, $http, $log, LoadingIndicatorService) {
         var vm = this;
 
         loadTree();
 
         function loadTree() {
+            LoadingIndicatorService.startLoading();
             $http({
                 method: 'GET', url: 'api/folder'
             }).then(function successCallback(response) {
                 vm.treedata = response.data;
+                LoadingIndicatorService.stopLoading();
             }, function errorCallback(response) {
+                LoadingIndicatorService.stopLoading();
                 $log.error(angular.toJson(response));
             });
         }
 
-        //vm.treedata =
-        //    [
-        //        { "title" : "User", "id" : "role1", "children" : [
-        //            { "title" : "subUser1", "id" : "role11", "children" : [] },
-        //            { "title" : "subUser2", "id" : "role12", "children" : [
-        //                { "title" : "subUser2-1", "id" : "role121", "children" : [
-        //                    { "title" : "subUser2-1-1", "id" : "role1211", "children" : [] },
-        //                    { "title" : "subUser2-1-2", "id" : "role1212", "children" : [] }
-        //                ]}
-        //            ]}
-        //        ]},
-        //        { "title" : "Admin", "id" : "role2", "children" : [] },
-        //        { "title" : "Guest", "id" : "role3", "children" : [] }
-        //    ];
+        function loadItemsInNode(nodeId) {
+            LoadingIndicatorService.startLoading();
+            $http({
+                method: 'GET', url: 'api/files-in-folder/' + nodeId
+            }).then(function successCallback(response) {
+                vm.itemsInSelectedNode = response.data;
+                LoadingIndicatorService.stopLoading();
+            }, function errorCallback(response) {
+                LoadingIndicatorService.stopLoading();
+                $log.error(angular.toJson(response));
+            });
+        }
 
+        $scope.$watch( 'tree.currentNode', function(newObj, oldObj) {
+            if( $scope.tree && angular.isObject($scope.tree.currentNode) ) {
+                console.log( $scope.tree.currentNode.id );
+                loadItemsInNode($scope.tree.currentNode.id);
+            }
+        }, false);
 
     }
 })();

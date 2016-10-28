@@ -4,6 +4,7 @@ import nl.wiegman.np30.api.dto.Item;
 import nl.wiegman.np30.repository.ItemRepo;
 import nl.wiegman.np30.service.MusicService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,6 +22,21 @@ public class MusicController {
 
     @Autowired
     ItemRepo itemRepo;
+
+    @RequestMapping(value = "/files-in-folder/{folder-id}", method = RequestMethod.GET)
+    public List<Item> filesInFolder(@PathVariable("folder-id") String folderId) {
+        List<Item> result = new ArrayList<>();
+
+        nl.wiegman.np30.domain.Item folder = itemRepo.findOne(folderId);
+
+        List<nl.wiegman.np30.domain.Item> filesInFolder = itemRepo.findByParentIdAndIsContainerFalse(folderId);
+
+        for(nl.wiegman.np30.domain.Item fileInFolder : filesInFolder) {
+            Item fileInFolderDto = map(fileInFolder);
+            result.add(fileInFolderDto);
+        }
+        return result;
+    }
 
     @RequestMapping(value = "/folder", method = RequestMethod.GET)
     public List<Item> getFolders() {
