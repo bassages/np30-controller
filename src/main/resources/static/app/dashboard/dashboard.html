@@ -1,0 +1,38 @@
+<div ng-include="'top-menu.html'"></div>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h1 class="panel-title"><i class="fa fa-bolt"></i> Muziek</h1>
+            </div>
+
+            <div class="panel-body">
+                <input ng-model='treeSearchQuery' type="text" />
+
+                <div
+                        data-angular-treeview="true"
+                        data-tree-id="tree"
+                        data-tree-model="vm.treedata"
+                        data-node-id="id"
+                        data-node-label="title"
+                        data-node-children="children"
+                        data-search-query='treeSearchQuery'>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h1 class="panel-title">{{tree.currentNode.title ? tree.currentNode.title : '-'}}</h1>
+            </div>
+            <div class="panel-body">
+
+            </div>
+        </div>
+    </div>
+
+
+</div>
