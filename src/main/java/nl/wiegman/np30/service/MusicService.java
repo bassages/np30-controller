@@ -105,8 +105,8 @@ public class MusicService {
     private static ArrayList<String> EXCLUDE_CONTAINERS_WITH_NAME = new ArrayList<>();
     static {
         // EXCLUDE_CONTAINERS_WITH_NAME.add("POP");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("ROCK");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("JAZZY");
+//        EXCLUDE_CONTAINERS_WITH_NAME.add("ROCK");
+//        EXCLUDE_CONTAINERS_WITH_NAME.add("JAZZY");
 //        EXCLUDE_CONTAINERS_WITH_NAME.add("BASS");
 //        EXCLUDE_CONTAINERS_WITH_NAME.add("DISCO");
 
@@ -132,7 +132,6 @@ public class MusicService {
         List<Item> items = itemRepo.findByIsContainerFalse();
 
         if (items.size() > 0) {
-
             int randomIndex = randomGenerator.nextInt(items.size());
             Item randomItem = items.get(randomIndex);
             Item randomContainer = getParent(randomItem);

@@ -46,6 +46,7 @@
             $http({
                 method: 'POST', url: 'api/play-random-folder'
             }).then(function successCallback(response) {
+                $log.info(response.data);
                 LoadingIndicatorService.stopLoading();
             }, function errorCallback(response) {
                 LoadingIndicatorService.stopLoading();
@@ -60,6 +61,7 @@
             $http({
                 method: 'POST', url: 'api/update-local-db'
             }).then(function successCallback(response) {
+                $log.info(response.data);
                 LoadingIndicatorService.stopLoading();
             }, function errorCallback(response) {
                 LoadingIndicatorService.stopLoading();
@@ -80,7 +82,7 @@
             });
         }
 
-        $scope.$watch( 'tree.currentNode', function(newObj, oldObj) {
+        $scope.$watch('tree.currentNode', function(newObj, oldObj) {
             if( $scope.tree && angular.isObject($scope.tree.currentNode) ) {
                 $log.info("Load items, folderId=" + $scope.tree.currentNode.id);
                 loadItemsInNode($scope.tree.currentNode.id);

@@ -1,6 +1,7 @@
 package nl.wiegman.np30.api.rest;
 
 import nl.wiegman.np30.api.dto.Item;
+import nl.wiegman.np30.api.dto.Message;
 import nl.wiegman.np30.repository.ItemRepo;
 import nl.wiegman.np30.service.MusicService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,14 +54,18 @@ public class MusicController {
     }
 
     @RequestMapping(value = "/play-random-folder", method = RequestMethod.POST)
-    public String randomFolder() throws IOException {
-        return musicService.playRandomFolderNow();
+    public Message randomFolder() throws IOException {
+        Message result = new Message();
+        result.setMessage(musicService.playRandomFolderNow());
+        return result;
     }
 
     @RequestMapping(value = "/update-local-db", method = RequestMethod.POST)
-    public String updateLocalDb() throws Exception {
+    public Message updateLocalDb() throws Exception {
+        Message result = new Message();
         musicService.updateLocalDb();
-        return "Update started";
+        result.setMessage("Update started");
+        return result;
     }
 
     private List<Item> buildTree(nl.wiegman.np30.domain.Item root) {
@@ -69,7 +74,6 @@ public class MusicController {
         List<nl.wiegman.np30.domain.Item> children = itemRepo.findByParentIdAndIsContainerTrue(root.getId());
         for(nl.wiegman.np30.domain.Item child : children) {
             Item childDto = map(child);
-
             result.add(childDto);
             childDto.setChildren(buildTree(child));
         }
