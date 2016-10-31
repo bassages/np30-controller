@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -23,11 +24,14 @@ public class MusicController {
     @Autowired
     ItemRepo itemRepo;
 
+    @RequestMapping(value = "/play-folder/{folder-id}", method = RequestMethod.POST)
+    public void playFolderNow(@PathVariable("folder-id") String folderId) throws IOException {
+        musicService.playFolderNow(itemRepo.findOne(folderId));
+    }
+
     @RequestMapping(value = "/files-in-folder/{folder-id}", method = RequestMethod.GET)
     public List<Item> filesInFolder(@PathVariable("folder-id") String folderId) {
         List<Item> result = new ArrayList<>();
-
-        nl.wiegman.np30.domain.Item folder = itemRepo.findOne(folderId);
 
         List<nl.wiegman.np30.domain.Item> filesInFolder = itemRepo.findByParentIdAndIsContainerFalse(folderId);
 
@@ -41,7 +45,22 @@ public class MusicController {
     @RequestMapping(value = "/folder", method = RequestMethod.GET)
     public List<Item> getFolders() {
         nl.wiegman.np30.domain.Item root = itemRepo.findOne("0:0");
-        return buildTree(root);
+        if (root != null) {
+            return buildTree(root);
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
+    @RequestMapping(value = "/play-random-folder", method = RequestMethod.POST)
+    public String randomFolder() throws IOException {
+        return musicService.playRandomFolderNow();
+    }
+
+    @RequestMapping(value = "/update-local-db", method = RequestMethod.POST)
+    public String updateLocalDb() throws Exception {
+        musicService.updateLocalDb();
+        return "Update started";
     }
 
     private List<Item> buildTree(nl.wiegman.np30.domain.Item root) {
@@ -62,16 +81,5 @@ public class MusicController {
         result.setTitle(item.getTitle());
         result.setId(item.getId());
         return result;
-    }
-
-    @RequestMapping(value = "/play-random-folder", method = RequestMethod.GET)
-    public String randomFolder() throws IOException {
-        return musicService.playRandomFolder();
-    }
-
-    @RequestMapping(value = "/update-local-db", method = RequestMethod.GET)
-    public String updateLocalDb() throws Exception {
-        musicService.updateLocalDb();
-        return "Done";
     }
 }

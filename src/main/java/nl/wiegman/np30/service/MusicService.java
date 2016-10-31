@@ -14,6 +14,7 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.upnp.schemas.metadata_1_0.didl_lite.ContainerType;
 import org.upnp.schemas.metadata_1_0.didl_lite.ItemType;
@@ -125,7 +126,7 @@ public class MusicService {
     }
 
     @Transactional
-    public String playRandomFolder() throws IOException {
+    public String playRandomFolderNow() throws IOException {
         registerNavigatorWhenNotAlreadyDone();
 
         List<Item> items = itemRepo.findByIsContainerFalse();
@@ -134,32 +135,52 @@ public class MusicService {
 
             int randomIndex = randomGenerator.nextInt(items.size());
             Item randomItem = items.get(randomIndex);
-
             Item randomContainer = getParent(randomItem);
 
-            List<Item> path = getPathTo(new ArrayList<>(), randomContainer);
+            playFolderNow(randomContainer);
 
-            Collections.reverse(path);
-
-            String randomItemPathString = "";
-            for (int i=0; i<path.size(); i++) {
-                Item pathItem = path.get(i);
-                if (i > 0) {
-                    randomItemPathString += " -> ";
-                }
-                browse(pathItem.getId());
-
-                randomItemPathString += pathItem.getTitle();
-            }
-
-            String response = queueFolder(randomContainer, PlaylistAction.REPLACE, navigatorId);
-            if (!getElementContentXml(response, "Result").equals("OK")) {
-                throw new RuntimeException("Failed to queueFolder. Response: " + response);
-            }
-
-            return randomItemPathString;
+            return getPathString(randomContainer);
         }
         return "Failed to select random item";
+    }
+
+    private String getPathString(Item item) throws IOException {
+        List<Item> path = getPathTo(new ArrayList<>(), item);
+
+        Collections.reverse(path);
+
+        String randomItemPathString = "";
+        for (int i=0; i<path.size(); i++) {
+            Item pathItem = path.get(i);
+            if (i > 0) {
+                randomItemPathString += " -> ";
+            }
+            browse(pathItem.getId());
+
+            randomItemPathString += pathItem.getTitle();
+        }
+
+        String response = queueFolder(item, PlaylistAction.REPLACE, navigatorId);
+        if (!getElementContentXml(response, "Result").equals("OK")) {
+            throw new RuntimeException("Failed to queueFolder. Response: " + response);
+        }
+        return randomItemPathString;
+    }
+
+    public void playFolderNow(Item folder) throws IOException {
+        List<Item> path = getPathTo(new ArrayList<>(), folder);
+
+        Collections.reverse(path);
+
+        for (int i=0; i<path.size(); i++) {
+            Item pathItem = path.get(i);
+            browse(pathItem.getId());
+        }
+
+        String response = queueFolder(folder, PlaylistAction.REPLACE, navigatorId);
+        if (!getElementContentXml(response, "Result").equals("OK")) {
+            throw new RuntimeException("Failed to queueFolder. Response: " + response);
+        }
     }
 
     private List<Item> getPathTo(List<Item> path, Item item) {
@@ -194,6 +215,7 @@ public class MusicService {
         }
     }
 
+    @Async
     public void updateLocalDb() throws Exception {
         long start = System.currentTimeMillis();
 
