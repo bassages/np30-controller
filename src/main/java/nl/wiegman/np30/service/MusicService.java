@@ -143,30 +143,9 @@ public class MusicService {
         return "Failed to select random item";
     }
 
-    private String getPathString(Item item) throws IOException {
-        List<Item> path = getPathTo(new ArrayList<>(), item);
-
-        Collections.reverse(path);
-
-        String randomItemPathString = "";
-        for (int i=0; i<path.size(); i++) {
-            Item pathItem = path.get(i);
-            if (i > 0) {
-                randomItemPathString += " -> ";
-            }
-            browse(pathItem.getId());
-
-            randomItemPathString += pathItem.getTitle();
-        }
-
-        String response = queueFolder(item, PlaylistAction.REPLACE, navigatorId);
-        if (!getElementContentXml(response, "Result").equals("OK")) {
-            throw new RuntimeException("Failed to queueFolder. Response: " + response);
-        }
-        return randomItemPathString;
-    }
-
     public void playFolderNow(Item folder) throws IOException {
+        registerNavigatorWhenNotAlreadyDone();
+
         List<Item> path = getPathTo(new ArrayList<>(), folder);
 
         Collections.reverse(path);
@@ -229,6 +208,29 @@ public class MusicService {
         browse(item, 0); // Always start from top, otherwise an error will be returned
 
         LOG.info("Processing took " + DurationFormatUtils.formatDurationHMS(System.currentTimeMillis() - start));
+    }
+
+    private String getPathString(Item item) throws IOException {
+        List<Item> path = getPathTo(new ArrayList<>(), item);
+
+        Collections.reverse(path);
+
+        String randomItemPathString = "";
+        for (int i=0; i<path.size(); i++) {
+            Item pathItem = path.get(i);
+            if (i > 0) {
+                randomItemPathString += " -> ";
+            }
+            browse(pathItem.getId());
+
+            randomItemPathString += pathItem.getTitle();
+        }
+
+        String response = queueFolder(item, PlaylistAction.REPLACE, navigatorId);
+        if (!getElementContentXml(response, "Result").equals("OK")) {
+            throw new RuntimeException("Failed to queueFolder. Response: " + response);
+        }
+        return randomItemPathString;
     }
 
     private void browse(Item item, int level) throws Exception {

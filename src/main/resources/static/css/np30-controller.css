@@ -28,3 +28,8 @@ body {
 .breadcrumb>.active {
     font-weight: bold;
 }
+
+.nav>li>a {
+    padding: 8px 15px;
+    background-color: #f9f9f9;
+}

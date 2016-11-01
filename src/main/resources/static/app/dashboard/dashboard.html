@@ -27,8 +27,11 @@
                     <li ng-repeat="item in vm.breadcrumb" class="breadcrumb-item" ng-class="{active: $last==true}"><a href ng-if="!$last" ng-click="vm.selectBreadcrumb(item)">{{item.title}}</a><span ng-if="$last">{{item.title}}</span></li>
                 </ol>
 
-                <ul>
+                <ul ng-if="vm.foldersInSelectedFolder" class="nav nav-pills nav-stacked">
                     <li ng-repeat="item in vm.foldersInSelectedFolder"><a href ng-click="vm.navigateDown(item.id)">{{item.title}}</a></li>
+                </ul>
+
+                <ul ng-if="vm.itemsInSelectedFolder">
                     <li ng-repeat="item in vm.itemsInSelectedFolder">{{item.title}}</li>
                 </ul>
             </nav>
