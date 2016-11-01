@@ -11,13 +11,21 @@
         var vm = this;
 
         vm.breadcrumb = [];
+        vm.selectBreadcrumb = selectBreadcrumb;
+        vm.detailsTitle = detailsTitle;
+        vm.playCurrentFolder = playCurrentFolder;
+        vm.playRandomFolder = playRandomFolder;
+        vm.updateLocalDb = updateLocalDb;
+        vm.navigateDown = navigateDown;
+        vm.navigateUp = navigateUp;
 
-        vm.up = function() {
+        vm.navigateDown("0:0");
+
+        function navigateUp() {
             var current = vm.breadcrumb.pop();
             var parentOfCurrent = vm.breadcrumb.pop();
-            $log.info(parentOfCurrent);
-            vm.load(parentOfCurrent.id);
-        };
+            vm.navigateDown(parentOfCurrent.id);
+        }
 
         function getFolders(items, folder) {
             var folders = [];
@@ -30,15 +38,23 @@
             return folders;
         }
 
-        vm.detailsTitle = function() {
+        function selectBreadcrumb(item) {
+            while (vm.breadcrumb[vm.breadcrumb.length-1].id != item.id) {
+                vm.breadcrumb.pop();
+            }
+            var parentOfCurrent = vm.breadcrumb.pop();
+            vm.navigateDown(parentOfCurrent.id);
+        }
+
+        function detailsTitle() {
             var result = "-";
             if (vm.itemsInSelectedFolder && vm.itemsInSelectedFolder.length > 0) {
                 result = vm.breadcrumb[vm.breadcrumb.length-1].title;
             }
             return result;
-        };
+        }
 
-        vm.load = function(folderId) {
+        function navigateDown(folderId) {
             $log.info("Load folderId=" + folderId);
 
             LoadingIndicatorService.startLoading();
@@ -55,11 +71,9 @@
                 LoadingIndicatorService.stopLoading();
                 $log.error(angular.toJson(response));
             });
-        };
+        }
 
-        vm.load("0:0");
-
-        vm.playCurrentFolder = function() {
+        function playCurrentFolder() {
             LoadingIndicatorService.startLoading();
 
             var folderId = vm.breadcrumb[vm.breadcrumb.length-1].id;
@@ -73,9 +87,9 @@
                 LoadingIndicatorService.stopLoading();
                 $log.error(angular.toJson(response));
             });
-        };
+        }
 
-        vm.playRandomFolder = function() {
+        function playRandomFolder() {
             LoadingIndicatorService.startLoading();
 
             $log.info("Play random folder");
@@ -88,9 +102,9 @@
                 LoadingIndicatorService.stopLoading();
                 $log.error(angular.toJson(response));
             });
-        };
+        }
 
-        vm.updateLocalDb = function() {
+        function updateLocalDb() {
             LoadingIndicatorService.startLoading();
 
             $log.info("Update local DB");
@@ -103,6 +117,6 @@
                 LoadingIndicatorService.stopLoading();
                 $log.error(angular.toJson(response));
             });
-        };
+        }
     }
 })();

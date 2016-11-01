@@ -3,19 +3,19 @@
 <div class="row">
     <div class="col-md-12">
         <div class="panel panel-default">
-            <div class="panel-body">
+            <nav class="panel-body">
 
-                <div class="form-group filter">
-                    <label for="filter" class="control-label"></label>
-                    <div>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="filter" ng-model='treeSearchQuery' placeholder="Filter">
-                            <div class="input-group-btn">
-                                <button type="button" class="btn btn-default" title="Clear filter" ng-click="treeSearchQuery=''"><span class="glyphicon glyphicon-remove-circle" aria-hidden="true"></span></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!--<div class="form-group filter">-->
+                    <!--<label for="search" class="control-label"></label>-->
+                    <!--<div>-->
+                        <!--<div class="input-group">-->
+                            <!--<input type="text" class="form-control" id="search" ng-model='searchQuery' placeholder="Search...">-->
+                            <!--<div class="input-group-btn">-->
+                                <!--<button type="button" class="btn btn-default" title="Clear field" ng-click="treeSearchQuery=''"><span class="glyphicon glyphicon-remove-circle" aria-hidden="true"></span></button>-->
+                            <!--</div>-->
+                        <!--</div>-->
+                    <!--</div>-->
+                <!--</div>-->
 
                 <p>
                     <button type="button" class="btn btn-default" title="Update local database" ng-click="vm.updateLocalDb()"><i class="fa fa-refresh" aria-hidden="true"></i></button>
@@ -23,20 +23,15 @@
                     <button type="button" class="btn btn-default" title="Play this folder now" ng-if="vm.itemsInSelectedFolder.length > 0" ng-click="vm.playCurrentFolder()"><i class="fa fa-play-circle" aria-hidden="true"></i></button>
                 </p>
 
-                <div>
-                    <span ng-repeat="item in vm.breadcrumb" ng-class="{'h5':$last}"><span ng-if="!$first && ($middle || $last)"> / </span>{{item.title}}</span>
-                </div>
+                <ol class="breadcrumb">
+                    <li ng-repeat="item in vm.breadcrumb" class="breadcrumb-item" ng-class="{active: $last==true }"><a href ng-if="!$last" ng-click="vm.selectBreadcrumb(item)">{{item.title}}</a><span ng-if="$last">{{item.title}}</span></li>
+                </ol>
 
                 <ul>
-                    <a href ng-if="vm.breadcrumb.length > 1" ng-click="vm.up()">...</a>
-                    <li ng-repeat="item in vm.foldersInSelectedFolder"><a href ng-click="vm.load(item.id)">{{item.title}}</a></li>
-                </ul>
-                <ul ng-if="vm.itemsInSelectedFolder.length > 0">
+                    <li ng-repeat="item in vm.foldersInSelectedFolder"><a href ng-click="vm.navigateDown(item.id)">{{item.title}}</a></li>
                     <li ng-repeat="item in vm.itemsInSelectedFolder">{{item.title}}</li>
                 </ul>
-
-            </div>
+            </nav>
         </div>
     </div>
-
 </div>
