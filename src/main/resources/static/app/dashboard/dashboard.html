@@ -24,7 +24,7 @@
                 </p>
 
                 <ol class="breadcrumb">
-                    <li ng-repeat="item in vm.breadcrumb" class="breadcrumb-item" ng-class="{active: $last==true }"><a href ng-if="!$last" ng-click="vm.selectBreadcrumb(item)">{{item.title}}</a><span ng-if="$last">{{item.title}}</span></li>
+                    <li ng-repeat="item in vm.breadcrumb" class="breadcrumb-item" ng-class="{active: $last==true}"><a href ng-if="!$last" ng-click="vm.selectBreadcrumb(item)">{{item.title}}</a><span ng-if="$last">{{item.title}}</span></li>
                 </ol>
 
                 <ul>
