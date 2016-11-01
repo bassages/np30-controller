@@ -1,7 +1,7 @@
 <div ng-include="'top-menu.html'"></div>
 
 <div class="row">
-    <div class="col-md-5">
+    <div class="col-md-12">
         <div class="panel panel-default">
             <div class="panel-body">
 
@@ -19,37 +19,22 @@
 
                 <p>
                     <button type="button" class="btn btn-default" title="Update local database" ng-click="vm.updateLocalDb()"><i class="fa fa-refresh" aria-hidden="true"></i></button>
+                    <button type="button" class="btn btn-default" title="Play random folder" ng-click="vm.playRandomFolder()"><i class="fa fa-random" aria-hidden="true"></i></button>
+                    <button type="button" class="btn btn-default" title="Play this folder now" ng-if="vm.itemsInSelectedFolder.length > 0" ng-click="vm.playCurrentFolder()"><i class="fa fa-play-circle" aria-hidden="true"></i></button>
                 </p>
 
-                <div class="tree"
-                     data-angular-treeview="true"
-                     data-tree-id="tree"
-                     data-tree-model="vm.treedata"
-                     data-node-id="id"
-                     data-node-label="title"
-                     data-node-children="children"
-                     data-search-query='treeSearchQuery'>
+                <div>
+                    <span ng-repeat="item in vm.breadcrumb" ng-class="{'h5':$last}"><span ng-if="!$first && ($middle || $last)"> / </span>{{item.title}}</span>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="col-md-5">
-        <div class="panel panel-default">
-            <div class="panel-heading">
-                <h1 class="panel-title">{{tree.currentNode.title ? tree.currentNode.title : '-'}}</h1>
-            </div>
-            <div class="panel-body">
-                <p ng-if="vm.itemsInSelectedNode.length == 0">There are no playable items in the selected folder</p>
-
-                <p>
-                    <button type="button" class="btn btn-default" title="Play this folder now" ng-if="vm.itemsInSelectedNode.length > 0" ng-click="vm.playFolder(tree.currentNode.id)"><i class="fa fa-play-circle" aria-hidden="true"></i></button>
-                    <button type="button" class="btn btn-default" title="Play random folder" ng-if="vm.itemsInSelectedNode.length == 0" ng-click="vm.playRandomFolder(tree.currentNode.id)"><i ng-if="vm.treedata.length > 0" class="fa fa-random" aria-hidden="true"></i></button>
-                </p>
-
-                <ul ng-if="vm.itemsInSelectedNode.length > 0">
-                    <li ng-repeat="item in vm.itemsInSelectedNode">{{item.title}}</li>
+                <ul>
+                    <a href ng-if="vm.breadcrumb.length > 1" ng-click="vm.up()">...</a>
+                    <li ng-repeat="item in vm.foldersInSelectedFolder"><a href ng-click="vm.load(item.id)">{{item.title}}</a></li>
                 </ul>
+                <ul ng-if="vm.itemsInSelectedFolder.length > 0">
+                    <li ng-repeat="item in vm.itemsInSelectedFolder">{{item.title}}</li>
+                </ul>
+
             </div>
         </div>
     </div>

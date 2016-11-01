@@ -7,6 +7,7 @@ public class Item {
     private String id;
     private String title;
     private List<Item> children;
+    private boolean isContainer;
 
     public String getId() {
         return id;
@@ -30,5 +31,13 @@ public class Item {
 
     public void setChildren(List<Item> children) {
         this.children = children;
+    }
+
+    public boolean isContainer() {
+        return isContainer;
+    }
+
+    public void setIsContainer(boolean isContainer) {
+        this.isContainer = isContainer;
     }
 }

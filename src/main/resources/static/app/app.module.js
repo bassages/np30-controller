@@ -5,8 +5,7 @@
         'ngRoute',
         'ngResource',
         'ngAnimate',
-        'ui.bootstrap',
-        'angularTreeview'
+        'ui.bootstrap'
     ]);
 
 })();

@@ -10,23 +10,59 @@
     function DashboardController($scope, $http, $log, LoadingIndicatorService) {
         var vm = this;
 
-        loadTree();
+        vm.breadcrumb = [];
 
-        function loadTree() {
+        vm.up = function() {
+            var current = vm.breadcrumb.pop();
+            var parentOfCurrent = vm.breadcrumb.pop();
+            $log.info(parentOfCurrent);
+            vm.load(parentOfCurrent.id);
+        };
+
+        function getFolders(items, folder) {
+            var folders = [];
+            for (var key in items) {
+                var item = items[key];
+                if (item.container === folder) {
+                    folders.push(item);
+                }
+            }
+            return folders;
+        }
+
+        vm.detailsTitle = function() {
+            var result = "-";
+            if (vm.itemsInSelectedFolder && vm.itemsInSelectedFolder.length > 0) {
+                result = vm.breadcrumb[vm.breadcrumb.length-1].title;
+            }
+            return result;
+        };
+
+        vm.load = function(folderId) {
+            $log.info("Load folderId=" + folderId);
+
             LoadingIndicatorService.startLoading();
             $http({
-                method: 'GET', url: 'api/folder'
+                method: 'GET', url: 'api/folder/' + folderId
             }).then(function successCallback(response) {
-                vm.treedata = response.data;
+                vm.breadcrumb.push(response.data);
+
+                vm.foldersInSelectedFolder = getFolders(response.data.children, true);
+                vm.itemsInSelectedFolder = getFolders(response.data.children, false);
+
                 LoadingIndicatorService.stopLoading();
             }, function errorCallback(response) {
                 LoadingIndicatorService.stopLoading();
                 $log.error(angular.toJson(response));
             });
-        }
+        };
 
-        vm.playFolder = function(folderId) {
+        vm.load("0:0");
+
+        vm.playCurrentFolder = function() {
             LoadingIndicatorService.startLoading();
+
+            var folderId = vm.breadcrumb[vm.breadcrumb.length-1].id;
 
             $log.info("Play folder with id " + folderId);
             $http({
@@ -39,10 +75,10 @@
             });
         };
 
-        vm.playRandomFolder = function(folderId) {
+        vm.playRandomFolder = function() {
             LoadingIndicatorService.startLoading();
 
-            $log.info("Play random folder. folderId=" + folderId);
+            $log.info("Play random folder");
             $http({
                 method: 'POST', url: 'api/play-random-folder'
             }).then(function successCallback(response) {
@@ -68,27 +104,5 @@
                 $log.error(angular.toJson(response));
             });
         };
-
-        function loadItemsInNode(folderId) {
-            LoadingIndicatorService.startLoading();
-            $http({
-                method: 'GET', url: 'api/files-in-folder/' + folderId
-            }).then(function successCallback(response) {
-                vm.itemsInSelectedNode = response.data;
-                LoadingIndicatorService.stopLoading();
-            }, function errorCallback(response) {
-                LoadingIndicatorService.stopLoading();
-                $log.error(angular.toJson(response));
-            });
-        }
-
-        $scope.$watch('tree.currentNode', function(newObj, oldObj) {
-            if( $scope.tree && angular.isObject($scope.tree.currentNode) ) {
-                $log.info("Load items, folderId=" + $scope.tree.currentNode.id);
-                loadItemsInNode($scope.tree.currentNode.id);
-            }
-        }, false);
-
     }
 })();
-

@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -30,27 +29,20 @@ public class MusicController {
         musicService.playFolderNow(itemRepo.findOne(folderId));
     }
 
-    @RequestMapping(value = "/files-in-folder/{folder-id}", method = RequestMethod.GET)
-    public List<Item> filesInFolder(@PathVariable("folder-id") String folderId) {
-        List<Item> result = new ArrayList<>();
+    @RequestMapping(value = "/folder/{folder-id}", method = RequestMethod.GET)
+    public Item getFolder(@PathVariable("folder-id") String folderId) {
+        nl.wiegman.np30.domain.Item folder = itemRepo.findOne(folderId);
 
-        List<nl.wiegman.np30.domain.Item> filesInFolder = itemRepo.findByParentIdAndIsContainerFalse(folderId);
-
-        for(nl.wiegman.np30.domain.Item fileInFolder : filesInFolder) {
-            Item fileInFolderDto = map(fileInFolder);
-            result.add(fileInFolderDto);
+        List<Item> childrenOfFolder = new ArrayList<>();
+        List<nl.wiegman.np30.domain.Item> itemsInFolder = itemRepo.findByParentId(folderId);
+        for(nl.wiegman.np30.domain.Item child : itemsInFolder) {
+            Item item = map(child);
+            childrenOfFolder.add(item);
         }
+
+        Item result = map(folder);
+        result.setChildren(childrenOfFolder);
         return result;
-    }
-
-    @RequestMapping(value = "/folder", method = RequestMethod.GET)
-    public List<Item> getFolders() {
-        nl.wiegman.np30.domain.Item root = itemRepo.findOne("0:0");
-        if (root != null) {
-            return buildTree(root);
-        } else {
-            return Collections.emptyList();
-        }
     }
 
     @RequestMapping(value = "/play-random-folder", method = RequestMethod.POST)
@@ -68,22 +60,11 @@ public class MusicController {
         return result;
     }
 
-    private List<Item> buildTree(nl.wiegman.np30.domain.Item root) {
-        List<Item> result = new ArrayList<>();
-
-        List<nl.wiegman.np30.domain.Item> children = itemRepo.findByParentIdAndIsContainerTrue(root.getId());
-        for(nl.wiegman.np30.domain.Item child : children) {
-            Item childDto = map(child);
-            result.add(childDto);
-            childDto.setChildren(buildTree(child));
-        }
-        return result;
-    }
-
     private Item map(nl.wiegman.np30.domain.Item item) {
         Item result = new Item();
         result.setTitle(item.getTitle());
         result.setId(item.getId());
+        result.setIsContainer(item.isContainer());
         return result;
     }
 }
