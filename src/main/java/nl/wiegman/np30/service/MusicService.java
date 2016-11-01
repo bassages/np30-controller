@@ -50,7 +50,7 @@ public class MusicService {
     private Random randomGenerator = new Random();
 
     @Autowired
-    ItemRepo itemRepo;
+    private ItemRepo itemRepo;
 
     private enum PlaylistAction {
         PLAY_NOW,
@@ -173,10 +173,6 @@ public class MusicService {
 
     private Item getParent(Item item) {
         return itemRepo.findOne(item.getParentId());
-    }
-
-    private List<Item> getChildren(Item item) {
-        return itemRepo.findByParentId(item.getId());
     }
 
     private void registerNavigatorWhenNotAlreadyDone() throws IOException {

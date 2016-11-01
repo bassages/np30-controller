@@ -31,8 +31,8 @@
                     <li ng-repeat="item in vm.foldersInSelectedFolder"><a href ng-click="vm.navigateDown(item.id)">{{item.title}}</a></li>
                 </ul>
 
-                <ul ng-if="vm.itemsInSelectedFolder">
-                    <li ng-repeat="item in vm.itemsInSelectedFolder">{{item.title}}</li>
+                <ul ng-if="vm.itemsInSelectedFolder" class="list-group">
+                    <li class="list-group-item" ng-repeat="item in vm.itemsInSelectedFolder">{{item.title}}</li>
                 </ul>
             </nav>
         </div>
