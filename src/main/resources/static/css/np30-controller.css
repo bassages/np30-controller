@@ -33,3 +33,12 @@ body {
     padding: 8px 15px;
     background-color: #f9f9f9;
 }
+
+.alert {
+    margin-bottom: 8px;
+    padding: 10px;
+}
+
+.alert-dismissable, .alert-dismissible {
+    padding-right: 35px;
+}

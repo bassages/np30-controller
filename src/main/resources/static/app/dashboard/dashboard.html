@@ -1,5 +1,7 @@
 <div ng-include="'top-menu.html'"></div>
 
+<div uib-alert ng-repeat="alert in vm.alerts" ng-class="'alert-' + (alert.type || 'warning')" close="vm.closeAlert($index)">{{alert.msg}}</div>
+
 <div class="row">
     <div class="col-md-12">
         <div class="panel panel-default">

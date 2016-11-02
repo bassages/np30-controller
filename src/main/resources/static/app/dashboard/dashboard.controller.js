@@ -11,6 +11,7 @@
         var vm = this;
 
         vm.breadcrumb = [];
+        vm.alerts = [];
         vm.selectBreadcrumb = selectBreadcrumb;
         vm.detailsTitle = detailsTitle;
         vm.playCurrentFolder = playCurrentFolder;
@@ -18,8 +19,13 @@
         vm.updateLocalDb = updateLocalDb;
         vm.navigateDown = navigateDown;
         vm.navigateUp = navigateUp;
+        vm.closeAlert = closeAlert;
 
         vm.navigateDown("0:0");
+
+        function closeAlert(index) {
+            vm.alerts.splice(index, 1);
+        }
 
         function navigateUp() {
             var current = vm.breadcrumb.pop();
@@ -57,6 +63,8 @@
         function navigateDown(folderId) {
             $log.info("Load folderId=" + folderId);
 
+            vm.alerts.push({type: 'success', msg: 'FolderId: ' + folderId});
+
             LoadingIndicatorService.startLoading();
             $http({
                 method: 'GET', url: 'api/folder/' + folderId
@@ -93,10 +101,11 @@
             LoadingIndicatorService.startLoading();
 
             $log.info("Play random folder");
+
             $http({
                 method: 'POST', url: 'api/play-random-folder'
             }).then(function successCallback(response) {
-                $log.info(response.data);
+                vm.alerts.push({type: 'success', msg: response.data.message});
                 LoadingIndicatorService.stopLoading();
             }, function errorCallback(response) {
                 LoadingIndicatorService.stopLoading();
@@ -111,7 +120,7 @@
             $http({
                 method: 'POST', url: 'api/update-local-db'
             }).then(function successCallback(response) {
-                $log.info(response.data);
+                vm.alerts.push({type: 'success', msg: response.data.message});
                 LoadingIndicatorService.stopLoading();
             }, function errorCallback(response) {
                 LoadingIndicatorService.stopLoading();
