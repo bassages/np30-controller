@@ -63,8 +63,6 @@
         function navigateDown(folderId) {
             $log.info("Load folderId=" + folderId);
 
-            vm.alerts.push({type: 'success', msg: 'FolderId: ' + folderId});
-
             LoadingIndicatorService.startLoading();
             $http({
                 method: 'GET', url: 'api/folder/' + folderId
