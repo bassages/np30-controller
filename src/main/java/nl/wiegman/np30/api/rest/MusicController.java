@@ -52,11 +52,18 @@ public class MusicController {
         return result;
     }
 
-    @RequestMapping(value = "/update-local-db", method = RequestMethod.POST)
+    @RequestMapping(value = "/refresh-cache", method = RequestMethod.POST)
     public Message updateLocalDb() throws Exception {
         Message result = new Message();
-        musicService.updateLocalDb();
+        musicService.refreshCache();
         result.setMessage("Update started");
+        return result;
+    }
+
+    @RequestMapping(value = "/refresh-cache", method = RequestMethod.GET)
+    public Message updateCacheStatus() throws IOException {
+        Message result = new Message();
+        result.setMessage(musicService.getRefreshCacheProgressStatus());
         return result;
     }
 

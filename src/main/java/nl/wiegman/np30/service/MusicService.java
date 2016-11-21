@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,6 +49,9 @@ public class MusicService {
     private String navigatorId;
 
     private Random randomGenerator = new Random();
+
+    private String updateCacheProgressStatus = null;
+    private List<Item> refreshCacheStatusStack = new CopyOnWriteArrayList();
 
     @Autowired
     private ItemRepo itemRepo;
@@ -190,8 +194,10 @@ public class MusicService {
     }
 
     @Async
-    public void updateLocalDb() throws Exception {
+    public void refreshCache() throws Exception {
         long start = System.currentTimeMillis();
+
+        LOG.info("RefreshCache");
 
         registerNavigatorWhenNotAlreadyDone();
 
@@ -199,11 +205,23 @@ public class MusicService {
 
         Item item = new Item();
         item.setId(TOP_ID);
-        item.setTitle("Music");
 
-        browse(item, 0); // Always start from top, otherwise an error will be returned
+        refresh(item, 0); // Always start from top, otherwise an error will be returned
 
-        LOG.info("Processing took " + DurationFormatUtils.formatDurationHMS(System.currentTimeMillis() - start));
+        updateCacheProgressStatus = "Done. Processing time: " + DurationFormatUtils.formatDurationHMS(System.currentTimeMillis() - start);
+    }
+
+    public String getRefreshCacheProgressStatus() {
+        String result = "";
+
+        for (int i=1; i<refreshCacheStatusStack.size(); i++) {
+            Item pathItem = refreshCacheStatusStack.get(i);
+            if (i > 1) {
+                result += " -> ";
+            }
+            result += pathItem.getTitle();
+        }
+        return result;
     }
 
     private String getPathString(Item item) throws IOException {
@@ -229,7 +247,9 @@ public class MusicService {
         return randomItemPathString;
     }
 
-    private void browse(Item item, int level) throws Exception {
+    private void refresh(Item item, int level) throws Exception {
+        refreshCacheStatusStack.add(item);
+
         String responseString = browse(item.getId());
 
         if (responseString.contains("Fault") && responseString.contains("faultstring")) {
@@ -244,22 +264,26 @@ public class MusicService {
         StringReader reader = new StringReader(resultXml);
         RootType rootType = ((JAXBElement<RootType>) unmarshaller.unmarshal(reader)).getValue();
 
-        for(Object o : rootType.getAllowedUnderDIDLLite()) {
-            if (o instanceof ContainerType) {
-                ContainerType container = (ContainerType) o;
+        for(Object object : rootType.getAllowedUnderDIDLLite()) {
+
+            if (object instanceof ContainerType) {
+                ContainerType container = (ContainerType) object;
 
                 String title = container.getTitle().getValue();
 
                 if (!EXCLUDE_CONTAINERS_WITH_NAME.contains(title.toUpperCase())) {
-                    Item savedContainer = save(container.getId(), container.getParentID(), title, level, true);
-                    browse(savedContainer, level + 1);
+                    boolean isContainer = true;
+                    Item savedContainer = save(container.getId(), container.getParentID(), title, level, isContainer);
+                    refresh(savedContainer, level + 1);
                 }
 
-            } else if (o instanceof ItemType) {
-                ItemType itemType = (ItemType) o;
-                save(itemType.getId(), itemType.getParentID(), itemType.getTitle().getValue(), level, false);
+            } else if (object instanceof ItemType) {
+                ItemType itemType = (ItemType) object;
+                boolean isContainer = false;
+                save(itemType.getId(), itemType.getParentID(), itemType.getTitle().getValue(), level, isContainer);
             }
         }
+        refreshCacheStatusStack.remove(item);
     }
 
     private String getElementContentXml(String soapResponse, String elementName) {
@@ -309,16 +333,6 @@ public class MusicService {
         item.setTitle(title);
         item.setParentId(parentId);
         item.setIsContainer(isContainer);
-
-        String s = "";
-        for (int i=0; i<level; i++) {
-            s += "|-";
-        }
-        s += title;
-
-        itemRepo.save(item);
-        LOG.info(s);
-
-        return item;
+        return itemRepo.save(item);
     }
 }

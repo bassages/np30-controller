@@ -5,9 +5,9 @@
         .module('app')
         .controller('DashboardController', DashboardController);
 
-    DashboardController.$inject = ['$scope', '$http', '$log', 'LoadingIndicatorService'];
+    DashboardController.$inject = ['$interval', '$http', '$log', 'LoadingIndicatorService'];
 
-    function DashboardController($scope, $http, $log, LoadingIndicatorService) {
+    function DashboardController($interval, $http, $log, LoadingIndicatorService) {
         var vm = this;
 
         vm.breadcrumb = [];
@@ -16,15 +16,49 @@
         vm.detailsTitle = detailsTitle;
         vm.playCurrentFolder = playCurrentFolder;
         vm.playRandomFolder = playRandomFolder;
-        vm.updateLocalDb = updateLocalDb;
+        vm.refreshCache = refreshCache;
         vm.navigateDown = navigateDown;
         vm.navigateUp = navigateUp;
         vm.closeAlert = closeAlert;
 
         vm.navigateDown("0:0");
 
+        vm.refreshCacheStatusAlert = null;
+
+        $interval(function () {
+            updateRefreshCacheStatus();
+        }, 1500);
+
+        function updateRefreshCacheStatusAlert(messsage) {
+            if (vm.refreshCacheStatusAlert == null) {
+                vm.refreshCacheStatusAlert = {type: 'info', msg: 'Refresh cache: ' + messsage};
+                vm.alerts.push(vm.refreshCacheStatusAlert);
+            } else {
+                vm.refreshCacheStatusAlert.msg = 'Refresh cache: ' + messsage;
+            }
+        }
+
+        function updateRefreshCacheStatus() {
+            $http({
+                method: 'GET', url: 'api/refresh-cache'
+            }).then(function successCallback(response) {
+
+                if (response.data && response.data.message) {
+                    updateRefreshCacheStatusAlert(response.data.message);
+                } else {
+                    closeAlert(vm.alerts.indexOf(vm.updateCacheStatusAlert));
+                    vm.refreshCacheStatusAlert = null;
+                }
+
+            }, function errorCallback(response) {
+                $log.error(angular.toJson(response));
+            });
+        }
+
         function closeAlert(index) {
-            vm.alerts.splice(index, 1);
+            if (index > -1) {
+                vm.alerts.splice(index, 1);
+            }
         }
 
         function navigateUp() {
@@ -111,14 +145,13 @@
             });
         }
 
-        function updateLocalDb() {
+        function refreshCache() {
             LoadingIndicatorService.startLoading();
 
-            $log.info("Update local DB");
+            $log.info("Refresh cache");
             $http({
-                method: 'POST', url: 'api/update-local-db'
+                method: 'POST', url: 'api/refresh-cache'
             }).then(function successCallback(response) {
-                vm.alerts.push({type: 'success', msg: response.data.message});
                 LoadingIndicatorService.stopLoading();
             }, function errorCallback(response) {
                 LoadingIndicatorService.stopLoading();
