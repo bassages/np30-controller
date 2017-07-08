@@ -1,17 +1,16 @@
 package nl.wiegman.np30.repository;
 
-import nl.wiegman.np30.domain.Item;
+import java.util.List;
+
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import nl.wiegman.np30.domain.Item;
 
 public interface ItemRepo extends JpaRepository<Item, String> {
 
+    @Cacheable(cacheNames = "itemsWhichAreNotContainer")
     List<Item> findByIsContainerFalse();
 
     List<Item> findByParentId(String parentId);
-
-    List<Item> findByParentIdAndIsContainerTrue(String parentId);
-
-    List<Item> findByParentIdAndIsContainerFalse(String parentId);
 }

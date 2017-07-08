@@ -4,6 +4,7 @@ import nl.wiegman.np30.api.dto.Item;
 import nl.wiegman.np30.api.dto.Message;
 import nl.wiegman.np30.repository.ItemRepo;
 import nl.wiegman.np30.service.MusicService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,11 +19,14 @@ import java.util.List;
 @RequestMapping("/api")
 public class MusicController {
 
-    @Autowired
-    MusicService musicService;
+    private final MusicService musicService;
+    private final ItemRepo itemRepo;
 
     @Autowired
-    ItemRepo itemRepo;
+    public MusicController(MusicService musicService, ItemRepo itemRepo) {
+        this.musicService = musicService;
+        this.itemRepo = itemRepo;
+    }
 
     @RequestMapping(value = "/play-folder/{folder-id}", method = RequestMethod.POST)
     public void playFolderNow(@PathVariable("folder-id") String folderId) throws IOException {
@@ -31,17 +35,20 @@ public class MusicController {
 
     @RequestMapping(value = "/folder/{folder-id}", method = RequestMethod.GET)
     public Item getFolder(@PathVariable("folder-id") String folderId) {
+        Item result = null;
+
         nl.wiegman.np30.domain.Item folder = itemRepo.findOne(folderId);
+        if (folder != null) {
+            List<Item> childrenOfFolder = new ArrayList<>();
+            List<nl.wiegman.np30.domain.Item> itemsInFolder = itemRepo.findByParentId(folderId);
+            for(nl.wiegman.np30.domain.Item child : itemsInFolder) {
+                Item item = map(child);
+                childrenOfFolder.add(item);
+            }
 
-        List<Item> childrenOfFolder = new ArrayList<>();
-        List<nl.wiegman.np30.domain.Item> itemsInFolder = itemRepo.findByParentId(folderId);
-        for(nl.wiegman.np30.domain.Item child : itemsInFolder) {
-            Item item = map(child);
-            childrenOfFolder.add(item);
+            result = map(folder);
+            result.setChildren(childrenOfFolder);
         }
-
-        Item result = map(folder);
-        result.setChildren(childrenOfFolder);
         return result;
     }
 

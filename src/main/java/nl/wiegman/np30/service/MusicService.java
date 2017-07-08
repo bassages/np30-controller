@@ -1,7 +1,21 @@
 package nl.wiegman.np30.service;
 
-import nl.wiegman.np30.domain.Item;
-import nl.wiegman.np30.repository.ItemRepo;
+import java.io.IOException;
+import java.io.StringReader;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.Unmarshaller;
+
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.apache.http.HttpEntity;
@@ -14,54 +28,58 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.upnp.schemas.metadata_1_0.didl_lite.ContainerType;
 import org.upnp.schemas.metadata_1_0.didl_lite.ItemType;
 import org.upnp.schemas.metadata_1_0.didl_lite.RootType;
 
-import javax.transaction.Transactional;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.Unmarshaller;
-import java.io.IOException;
-import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import nl.wiegman.np30.domain.Item;
+import nl.wiegman.np30.repository.ItemRepo;
 
-@Component
+// Please check http://<ip of np30>:49000/MediaServerDevDesc.xml
+
+@Service
 public class MusicService {
 
     private static final Logger LOG = LoggerFactory.getLogger(MusicService.class);
 
-    private static final String SERVER_UDN = "e68f7d3a-302b-4bf2-98b9-15c5ad390f0b";
-
-    public static final String NP_30_BASE_URL = "http://np30:8050/" + SERVER_UDN;
-
     public static final String TOP_ID = "0";
-
     private static String NAVIGATOR_NAME = "eae7dc9f-ce35-4940-bcd9-f495e4867cf5_NP";
     private String navigatorId;
+
+    @Value("${np30.api.server-udn}")
+    private String np30ServerUdn;
+
+    @Value("${np30.api.url}")
+    private String np30BaseUrl;
+
+    @Value("#{'${np30.library.excluded-containternames}'.split(',')}")
+    private List<String> excludedContainernames;
 
     private Random randomGenerator = new Random();
 
     private String updateCacheProgressStatus = null;
     private List<Item> refreshCacheStatusStack = new CopyOnWriteArrayList();
 
+    private final ItemRepo itemRepo;
+
+    private final CacheManager cacheManager;
+
     @Autowired
-    private ItemRepo itemRepo;
+    public MusicService(ItemRepo itemRepo, CacheManager cacheManager) {
+        this.itemRepo = itemRepo;
+        this.cacheManager = cacheManager;
+    }
 
     private enum PlaylistAction {
         PLAY_NOW,
         REPLACE
     }
 
-    String isRegisteredNavigatorNameTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+    private String isRegisteredNavigatorNameTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
                 "<s:Body>" +
                     "<u:IsRegisteredNavigatorName xmlns:u=\"urn:UuVol-com:service:UuVolControl:5\">" +
@@ -70,7 +88,7 @@ public class MusicService {
                 "</s:Body>" +
             "</s:Envelope>";
 
-    String registerNavigatorNameTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+    private String registerNavigatorNameTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
                 "<s:Body>" +
                     "<u:RegisterNamedNavigator xmlns:u=\"urn:UuVol-com:service:UuVolControl:5\">" +
@@ -79,12 +97,12 @@ public class MusicService {
                 "</s:Body>" +
             "</s:Envelope>";
 
-    String playFolderNowTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+    private String playFolderNowTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
                 "<s:Body>" +
                     "<u:QueueFolder xmlns:u=\"urn:UuVol-com:service:UuVolControl:5\">" +
                         "<DIDL>&lt;DIDL-Lite xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"&gt;&lt;container id=\"%s\" parentID=\"%s\"&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;/container&gt;&lt;/DIDL-Lite&gt;</DIDL>" +
-                        "<ServerUDN>" + SERVER_UDN + "</ServerUDN>" +
+                        "<ServerUDN>%s</ServerUDN>" +
                         "<Action>%s</Action>" +
                         "<NavigatorId>%s</NavigatorId>" +
                         "<ExtraInfo></ExtraInfo>" +
@@ -92,7 +110,7 @@ public class MusicService {
                 "</s:Body>" +
             "</s:Envelope>";
 
-    String browseRequestTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+    private String browseRequestTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
                 "<s:Body>" +
                     "<u:Browse xmlns:u=\"urn:schemas-upnp-org:service:ContentDirectory:1\">" +
@@ -106,30 +124,6 @@ public class MusicService {
                 "</s:Body>" +
             "</s:Envelope>";
 
-    private static ArrayList<String> EXCLUDE_CONTAINERS_WITH_NAME = new ArrayList<>();
-    static {
-        // EXCLUDE_CONTAINERS_WITH_NAME.add("POP");
-//        EXCLUDE_CONTAINERS_WITH_NAME.add("ROCK");
-//        EXCLUDE_CONTAINERS_WITH_NAME.add("JAZZY");
-//        EXCLUDE_CONTAINERS_WITH_NAME.add("BASS");
-//        EXCLUDE_CONTAINERS_WITH_NAME.add("DISCO");
-
-        EXCLUDE_CONTAINERS_WITH_NAME.add("COVER");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("COVERS");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("ARTWORK");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("SCAN");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("SCANS");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("COVERART");
-
-        EXCLUDE_CONTAINERS_WITH_NAME.add("MOVIES");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("3DMOVIES");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("MUSICMOVIES");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("$RECYCLE.BIN");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("XBMC_BOXEE");
-        EXCLUDE_CONTAINERS_WITH_NAME.add("SYSTEM VOLUME INFORMATION");
-    }
-
-    @Transactional
     public String playRandomFolderNow() throws IOException {
         registerNavigatorWhenNotAlreadyDone();
 
@@ -154,8 +148,7 @@ public class MusicService {
 
         Collections.reverse(path);
 
-        for (int i=0; i<path.size(); i++) {
-            Item pathItem = path.get(i);
+        for (Item pathItem : path) {
             browse(pathItem.getId());
         }
 
@@ -208,7 +201,11 @@ public class MusicService {
 
         refresh(item, 0); // Always start from top, otherwise an error will be returned
 
-        updateCacheProgressStatus = "Done. Processing time: " + DurationFormatUtils.formatDurationHMS(System.currentTimeMillis() - start);
+        String msg = "Update cache finished at " + new SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format(new Date()) + ". Processing time: " + DurationFormatUtils.formatDurationHMS(System.currentTimeMillis() - start);
+
+        refreshCacheStatusStack.clear();
+
+        LOG.info(msg);
     }
 
     public String getRefreshCacheProgressStatus() {
@@ -248,6 +245,7 @@ public class MusicService {
     }
 
     private void refresh(Item item, int level) throws Exception {
+        clearAllCaches();
         refreshCacheStatusStack.add(item);
 
         String responseString = browse(item.getId());
@@ -271,7 +269,7 @@ public class MusicService {
 
                 String title = container.getTitle().getValue();
 
-                if (!EXCLUDE_CONTAINERS_WITH_NAME.contains(title.toUpperCase())) {
+                if (!excludedContainernames.contains(title.toUpperCase())) {
                     boolean isContainer = true;
                     Item savedContainer = save(container.getId(), container.getParentID(), title, level, isContainer);
                     refresh(savedContainer, level + 1);
@@ -284,6 +282,7 @@ public class MusicService {
             }
         }
         refreshCacheStatusStack.remove(item);
+        clearAllCaches();
     }
 
     private String getElementContentXml(String soapResponse, String elementName) {
@@ -310,11 +309,13 @@ public class MusicService {
     }
 
     private String queueFolder(Item folder, PlaylistAction playlistAction, String navigatorId) throws IOException {
-        return executeSoapAction("/RecivaRadio/invoke", "\"urn:UuVol-com:service:UuVolControl:5#QueueFolder\"", String.format(playFolderNowTemplate, folder.getId(), folder.getParentId(), playlistAction.name(), navigatorId));
+        return executeSoapAction("/RecivaRadio/invoke", "\"urn:UuVol-com:service:UuVolControl:5#QueueFolder\"", String.format(playFolderNowTemplate, folder.getId(), folder.getParentId(), np30ServerUdn, playlistAction.name(), navigatorId));
     }
     private String executeSoapAction(String port, String soapAction, String body) throws IOException {
+        LOG.debug("Request body: " + body);
+
         CloseableHttpClient httpclient = HttpClients.createDefault();
-        HttpPost httpPost = new HttpPost(NP_30_BASE_URL + port);
+        HttpPost httpPost = new HttpPost(np30BaseUrl + port);
         httpPost.setHeader("Content-Type", "text/xml; charset=\"utf-8\"");
         httpPost.setHeader("SOAPAction", soapAction);
         httpPost.setEntity(new StringEntity(body));
@@ -333,6 +334,10 @@ public class MusicService {
         item.setTitle(title);
         item.setParentId(parentId);
         item.setIsContainer(isContainer);
-        return itemRepo.save(item);
+        return itemRepo.saveAndFlush(item);
+    }
+
+    private void clearAllCaches() {
+        cacheManager.getCacheNames().forEach(s -> cacheManager.getCache(s).clear());
     }
 }

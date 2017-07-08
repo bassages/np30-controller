@@ -67,11 +67,11 @@
             vm.navigateDown(parentOfCurrent.id);
         }
 
-        function getFolders(items, folder) {
+        function getContent(items, onlyFolders) {
             var folders = [];
             for (var key in items) {
                 var item = items[key];
-                if (item.container === folder) {
+                if (item.container === onlyFolders) {
                     folders.push(item);
                 }
             }
@@ -103,8 +103,12 @@
             }).then(function successCallback(response) {
                 vm.breadcrumb.push(response.data);
 
-                vm.foldersInSelectedFolder = getFolders(response.data.children, true);
-                vm.itemsInSelectedFolder = getFolders(response.data.children, false);
+                vm.foldersInSelectedFolder = getContent(response.data.children, true);
+                vm.itemsInSelectedFolder = getContent(response.data.children, false);
+
+                if (vm.foldersInSelectedFolder.length === 0 && vm.itemsInSelectedFolder.length === 0) {
+                    vm.itemsInSelectedFolder = [{title: '<This folder is empty>'}];
+                }
 
                 LoadingIndicatorService.stopLoading();
             }, function errorCallback(response) {
@@ -133,7 +137,6 @@
             LoadingIndicatorService.startLoading();
 
             $log.info("Play random folder");
-
             $http({
                 method: 'POST', url: 'api/play-random-folder'
             }).then(function successCallback(response) {
