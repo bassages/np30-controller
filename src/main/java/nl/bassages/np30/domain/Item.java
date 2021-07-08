@@ -1,4 +1,4 @@
-package nl.wiegman.np30.domain;
+package nl.bassages.np30.domain;
 
 import javax.persistence.Entity;
 import javax.persistence.Id;

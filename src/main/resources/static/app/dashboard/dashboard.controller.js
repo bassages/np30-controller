@@ -20,14 +20,22 @@
         vm.navigateDown = navigateDown;
         vm.navigateUp = navigateUp;
         vm.closeAlert = closeAlert;
+        vm.skipPrevious = skipPrevious;
+        vm.skipNext = skipNext;
+        vm.getPlaybackDetails = getPlaybackDetails;
 
         vm.navigateDown("0:0");
 
         vm.refreshCacheStatusAlert = null;
+        vm.playbackDetailsAlert = null;
 
         $interval(function () {
             updateRefreshCacheStatus();
         }, 1500);
+
+        $interval(function () {
+            getPlaybackDetails();
+        }, 1000);
 
         function updateRefreshCacheStatusAlert(messsage) {
             if (vm.refreshCacheStatusAlert == null) {
@@ -38,6 +46,13 @@
             }
         }
 
+        function updatePlaybackDetailsAlert(artist, title, album) {
+            vm.playbackDetailsAlert = {
+                artist: artist,
+                title: title,
+                album: album
+            };
+        }
         function updateRefreshCacheStatus() {
             $http({
                 method: 'GET', url: 'api/refresh-cache'
@@ -50,6 +65,21 @@
                     vm.refreshCacheStatusAlert = null;
                 }
 
+            }, function errorCallback(response) {
+                $log.error(angular.toJson(response));
+            });
+        }
+
+        function getPlaybackDetails() {
+            $http({
+                method: 'GET', url: 'api/playback-details'
+            }).then(function successCallback(response) {
+                if (response.data && response.data) {
+                    updatePlaybackDetailsAlert(response.data.artist, response.data.title, response.data.album);
+                } else {
+                    closeAlert(vm.alerts.indexOf(vm.playbackDetailsAlert));
+                    vm.playbackDetailsAlert = null;
+                }
             }, function errorCallback(response) {
                 $log.error(angular.toJson(response));
             });
@@ -117,10 +147,34 @@
             });
         }
 
+        function skipPrevious() {
+            $log.info("Skip previous");
+            $http({
+                method: 'POST', url: 'api/skip-previous'
+            }).then(function successCallback(response) {
+                LoadingIndicatorService.stopLoading();
+            }, function errorCallback(response) {
+                LoadingIndicatorService.stopLoading();
+                $log.error(angular.toJson(response));
+            });
+        }
+
+        function skipNext() {
+            $log.info("Skip next");
+            $http({
+                method: 'POST', url: 'api/skip-next'
+            }).then(function successCallback(response) {
+                LoadingIndicatorService.stopLoading();
+            }, function errorCallback(response) {
+                LoadingIndicatorService.stopLoading();
+                $log.error(angular.toJson(response));
+            });
+        }
+
         function playCurrentFolder() {
             LoadingIndicatorService.startLoading();
 
-            var folderId = vm.breadcrumb[vm.breadcrumb.length-1].id;
+            const folderId = vm.breadcrumb[vm.breadcrumb.length-1].id;
 
             $log.info("Play folder with id " + folderId);
             $http({
@@ -140,7 +194,7 @@
             $http({
                 method: 'POST', url: 'api/play-random-folder'
             }).then(function successCallback(response) {
-                vm.alerts.push({type: 'success', msg: response.data.message});
+                $log.info(response.data.message);
                 LoadingIndicatorService.stopLoading();
             }, function errorCallback(response) {
                 LoadingIndicatorService.stopLoading();

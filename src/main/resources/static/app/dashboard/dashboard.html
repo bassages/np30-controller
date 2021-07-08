@@ -1,5 +1,6 @@
 <div ng-include="'top-menu.html'"></div>
 
+<div uib-alert ng-class="'alert-info'"><h3>Now playing</h3><strong>Artist: </strong> {{vm.playbackDetailsAlert.artist}}<br/><strong>Title: </strong>{{vm.playbackDetailsAlert.title}}<br/><strong>Album: </strong>{{vm.playbackDetailsAlert.album}}</div>
 <div uib-alert ng-repeat="alert in vm.alerts" ng-class="'alert-' + (alert.type || 'warning')" close="vm.closeAlert($index)">{{alert.msg}}</div>
 
 <div class="row">
@@ -8,9 +9,11 @@
             <nav class="panel-body">
 
                 <p>
-                    <button type="button" class="btn btn-default" title="Update cache" ng-click="vm.refreshCache()"><i class="fa fa-refresh" aria-hidden="true"></i></button>
                     <button type="button" class="btn btn-default" title="Play random folder" ng-click="vm.playRandomFolder()"><i class="fa fa-random" aria-hidden="true"></i></button>
                     <button type="button" class="btn btn-default" title="Play this folder now" ng-if="vm.itemsInSelectedFolder.length > 0" ng-click="vm.playCurrentFolder()"><i class="fa fa-play-circle" aria-hidden="true"></i></button>
+                    <button type="button" class="btn btn-default" title="Next" ng-click="vm.skipPrevious()"><i class="fa fa-step-backward" aria-hidden="true"></i></button>
+                    <button type="button" class="btn btn-default" title="Next" ng-click="vm.skipNext()"><i class="fa fa-step-forward" aria-hidden="true"></i></button>
+                    <button type="button" class="btn btn-default pull-right" title="Update cache" ng-click="vm.refreshCache()"><i class="fa fa-refresh" aria-hidden="true"></i></button>
                 </p>
 
                 <ol class="breadcrumb">

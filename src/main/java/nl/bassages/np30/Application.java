@@ -1,4 +1,4 @@
-package nl.wiegman.np30;
+package nl.bassages.np30;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

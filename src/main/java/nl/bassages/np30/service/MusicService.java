@@ -1,23 +1,22 @@
-package nl.wiegman.np30.service;
+package nl.bassages.np30.service;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
-import javax.xml.bind.Unmarshaller;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import nl.bassages.np30.domain.Item;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -36,18 +35,23 @@ import org.upnp.schemas.metadata_1_0.didl_lite.ContainerType;
 import org.upnp.schemas.metadata_1_0.didl_lite.ItemType;
 import org.upnp.schemas.metadata_1_0.didl_lite.RootType;
 
-import nl.wiegman.np30.domain.Item;
-import nl.wiegman.np30.repository.ItemRepo;
+import nl.bassages.np30.repository.ItemRepo;
+import org.w3c.dom.Document;
 
-// Please check http://<ip of np30>:49000/MediaServerDevDesc.xml
+// Please check http://<ip or hostname of NP30>:8050/e68f7d3a-302b-4bf2-98b9-15c5ad390f0b/description.xml
+// Example, see src/test/resources/description.xml
 
 @Service
 public class MusicService {
 
     private static final Logger LOG = LoggerFactory.getLogger(MusicService.class);
 
-    public static final String TOP_ID = "0";
-    private static String NAVIGATOR_NAME = "eae7dc9f-ce35-4940-bcd9-f495e4867cf5_NP";
+    public static final String TOP_ID = "0:0";
+    private static final String NAVIGATOR_NAME = "eae7dc9f-ce35-4940-bcd9-f495e4867cf5_NP";
+
+    private static final String SKIP_NEXT = "SKIP_NEXT";
+    private static final String SKIP_PREVIOUS = "SKIP_PREVIOUS";
+
     private String navigatorId;
 
     @Value("${np30.api.server-udn}")
@@ -59,10 +63,9 @@ public class MusicService {
     @Value("#{'${np30.library.excluded-containternames}'.split(',')}")
     private List<String> excludedContainernames;
 
-    private Random randomGenerator = new Random();
+    private final Random randomGenerator = new Random();
 
-    private String updateCacheProgressStatus = null;
-    private List<Item> refreshCacheStatusStack = new CopyOnWriteArrayList();
+    private final List<Item> refreshCacheStatusStack = new CopyOnWriteArrayList();
 
     private final ItemRepo itemRepo;
 
@@ -79,7 +82,7 @@ public class MusicService {
         REPLACE
     }
 
-    private String isRegisteredNavigatorNameTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+    private final String isRegisteredNavigatorNameTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
                 "<s:Body>" +
                     "<u:IsRegisteredNavigatorName xmlns:u=\"urn:UuVol-com:service:UuVolControl:5\">" +
@@ -88,7 +91,7 @@ public class MusicService {
                 "</s:Body>" +
             "</s:Envelope>";
 
-    private String registerNavigatorNameTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+    private final String registerNavigatorNameTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
                 "<s:Body>" +
                     "<u:RegisterNamedNavigator xmlns:u=\"urn:UuVol-com:service:UuVolControl:5\">" +
@@ -97,7 +100,7 @@ public class MusicService {
                 "</s:Body>" +
             "</s:Envelope>";
 
-    private String playFolderNowTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+    private final String playFolderNowTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
                 "<s:Body>" +
                     "<u:QueueFolder xmlns:u=\"urn:UuVol-com:service:UuVolControl:5\">" +
@@ -110,7 +113,7 @@ public class MusicService {
                 "</s:Body>" +
             "</s:Envelope>";
 
-    private String browseRequestTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+    private final String browseRequestTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
                 "<s:Body>" +
                     "<u:Browse xmlns:u=\"urn:schemas-upnp-org:service:ContentDirectory:1\">" +
@@ -124,14 +127,32 @@ public class MusicService {
                 "</s:Body>" +
             "</s:Envelope>";
 
+    private final String skipTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+            "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                "<s:Body><u:KeyPressed xmlns:u=\"urn:UuVol-com:service:UuVolSimpleRemote:1\">" +
+                        "<Key>%s</Key>" +
+                        "<Duration>SHORT</Duration>" +
+                    "</u:KeyPressed>" +
+                "</s:Body>" +
+            "</s:Envelope>";
+
+    private final String playbackDetailsTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+            "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                "<s:Body>" +
+                    "<u:GetPlaybackDetails xmlns:u=\"urn:UuVol-com:service:UuVolControl:5\">" +
+                        "<NavigatorId>%s</NavigatorId>" +
+                    "</u:GetPlaybackDetails>" +
+                "</s:Body>" +
+            "</s:Envelope>";
+
     public String playRandomFolderNow() throws IOException {
         registerNavigatorWhenNotAlreadyDone();
 
         List<Item> items = itemRepo.findByIsContainerFalse();
 
-        if (items.size() > 0) {
-            int randomIndex = randomGenerator.nextInt(items.size());
-            Item randomItem = items.get(randomIndex);
+        if (!items.isEmpty()) {
+            var randomIndex = randomGenerator.nextInt(items.size());
+            var randomItem = items.get(randomIndex);
             Item randomContainer = getParent(randomItem);
 
             playFolderNow(randomContainer);
@@ -169,7 +190,8 @@ public class MusicService {
     }
 
     private Item getParent(Item item) {
-        return itemRepo.findOne(item.getParentId());
+        final Optional<Item> itemById = itemRepo.findById(item.getParentId());
+        return itemById.get();
     }
 
     private void registerNavigatorWhenNotAlreadyDone() throws IOException {
@@ -196,7 +218,7 @@ public class MusicService {
 
         itemRepo.deleteAll();
 
-        Item item = new Item();
+        var item = new Item();
         item.setId(TOP_ID);
 
         refresh(item, 0); // Always start from top, otherwise an error will be returned
@@ -226,9 +248,9 @@ public class MusicService {
 
         Collections.reverse(path);
 
-        String randomItemPathString = "";
-        for (int i=0; i<path.size(); i++) {
-            Item pathItem = path.get(i);
+        var randomItemPathString = "";
+        for (var i=0; i<path.size(); i++) {
+            var pathItem = path.get(i);
             if (i > 0) {
                 randomItemPathString += " -> ";
             }
@@ -248,7 +270,7 @@ public class MusicService {
         clearAllCaches();
         refreshCacheStatusStack.add(item);
 
-        String responseString = browse(item.getId());
+        var responseString = browse(item.getId());
 
         if (responseString.contains("Fault") && responseString.contains("faultstring")) {
             LOG.error(responseString);
@@ -256,11 +278,11 @@ public class MusicService {
 
         String resultXml = getElementContentXml(responseString, "Result");
 
-        JAXBContext jaxbContext = JAXBContext.newInstance(RootType.class);
-        Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
+        var jaxbContext = JAXBContext.newInstance(RootType.class);
+        var unmarshaller = jaxbContext.createUnmarshaller();
 
-        StringReader reader = new StringReader(resultXml);
-        RootType rootType = ((JAXBElement<RootType>) unmarshaller.unmarshal(reader)).getValue();
+        var reader = new StringReader(resultXml);
+        var rootType = ((JAXBElement<RootType>) unmarshaller.unmarshal(reader)).getValue();
 
         for(Object object : rootType.getAllowedUnderDIDLLite()) {
 
@@ -269,15 +291,15 @@ public class MusicService {
 
                 String title = container.getTitle().getValue();
 
-                if (!excludedContainernames.contains(title.toUpperCase())) {
-                    boolean isContainer = true;
+                if (excludedContainernames.stream().noneMatch(title::equalsIgnoreCase)) {
+                    var isContainer = true;
                     Item savedContainer = save(container.getId(), container.getParentID(), title, level, isContainer);
                     refresh(savedContainer, level + 1);
                 }
 
             } else if (object instanceof ItemType) {
-                ItemType itemType = (ItemType) object;
-                boolean isContainer = false;
+                var itemType = (ItemType) object;
+                var isContainer = false;
                 save(itemType.getId(), itemType.getParentID(), itemType.getTitle().getValue(), level, isContainer);
             }
         }
@@ -288,8 +310,8 @@ public class MusicService {
     private String getElementContentXml(String soapResponse, String elementName) {
         String result = null;
 
-        final Pattern pattern = Pattern.compile(".+<" + elementName + ">(.+)</" + elementName + ">.+", Pattern.DOTALL);
-        final Matcher matcher = pattern.matcher(soapResponse);
+        var pattern = Pattern.compile(".+<" + elementName + ">(.+)</" + elementName + ">.+", Pattern.DOTALL);
+        var matcher = pattern.matcher(soapResponse);
         if (matcher.matches()) {
             result = StringEscapeUtils.unescapeXml(matcher.group(1));
         }
@@ -311,11 +333,40 @@ public class MusicService {
     private String queueFolder(Item folder, PlaylistAction playlistAction, String navigatorId) throws IOException {
         return executeSoapAction("/RecivaRadio/invoke", "\"urn:UuVol-com:service:UuVolControl:5#QueueFolder\"", String.format(playFolderNowTemplate, folder.getId(), folder.getParentId(), np30ServerUdn, playlistAction.name(), navigatorId));
     }
+
+    public PlayBackDetails getPlaybackDetails() throws Exception {
+        final String soapActionResult = executeSoapAction("/RecivaRadio/invoke", "\"urn:UuVol-com:service:UuVolControl:5#GetPlaybackDetails\"", String.format(playbackDetailsTemplate, navigatorId));
+
+        final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        final DocumentBuilder builder = factory.newDocumentBuilder();
+        final Document soapActionResultDoc = builder.parse(IOUtils.toInputStream(soapActionResult, StandardCharsets.UTF_8));
+        final String reciva = soapActionResultDoc.getElementsByTagName("RetPlaybackXML").item(0).getTextContent();
+
+        final Document recivaDoc = builder.parse(IOUtils.toInputStream(reciva, StandardCharsets.UTF_8));
+        final String artist = recivaDoc.getElementsByTagName("artist").item(0).getTextContent();
+        final String album = recivaDoc.getElementsByTagName("album").item(0).getTextContent();
+        final String title = recivaDoc.getElementsByTagName("title").item(0).getTextContent();
+
+        return new PlayBackDetails(artist, title, album);
+    }
+
+    public String skip(final String direction) throws IOException {
+        return executeSoapAction("/RecivaSimpleRemote/invoke", "\"urn:UuVol-com:service:UuVolSimpleRemote:1#KeyPressed\"", String.format(skipTemplate, direction));
+    }
+
+    public String skipNext() throws IOException {
+        return skip(SKIP_NEXT);
+    }
+
+    public String skipPrevious() throws IOException {
+        return skip(SKIP_PREVIOUS);
+    }
+
     private String executeSoapAction(String port, String soapAction, String body) throws IOException {
-        LOG.debug("Request body: " + body);
+        LOG.debug("Request body: {}", body);
 
         CloseableHttpClient httpclient = HttpClients.createDefault();
-        HttpPost httpPost = new HttpPost(np30BaseUrl + port);
+        var httpPost = new HttpPost(np30BaseUrl + port);
         httpPost.setHeader("Content-Type", "text/xml; charset=\"utf-8\"");
         httpPost.setHeader("SOAPAction", soapAction);
         httpPost.setEntity(new StringEntity(body));
@@ -329,7 +380,7 @@ public class MusicService {
     }
 
     private Item save(String id, String parentId, String title, int level, boolean isContainer) {
-        Item item = new Item();
+        var item = new Item();
         item.setId(id);
         item.setTitle(title);
         item.setParentId(parentId);

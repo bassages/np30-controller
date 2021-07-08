@@ -1,4 +1,4 @@
-package nl.wiegman.np30.api.dto;
+package nl.bassages.np30.api.dto;
 
 import java.util.List;
 
